@@ -5,6 +5,7 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Text.Json;
+using System.Linq;
 
 namespace RestService
 {
@@ -12,6 +13,7 @@ namespace RestService
     {
         private static NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
         public String reqDomain = "";
+        public int defaultTimeout {get;set;} = 60000;
         public Dictionary<string,string> fixedHeaders = new Dictionary<string, string>();
 
         public virtual RestServiceJson WithDomain(String request_domain)
@@ -38,7 +40,7 @@ namespace RestService
                 
                 WebRequest req = WebRequest.Create(strURL);
                 req.Method = method;
-                req.Timeout = 10000;
+                req.Timeout = defaultTimeout;
                 req.ContentType = "application/json";
                
                 foreach (KeyValuePair<string, string> entry in fixedHeaders)
@@ -59,14 +61,19 @@ namespace RestService
                     Stream newStream = req.GetRequestStream();
                     newStream.Write(httpBody, 0, httpBody.Length);
                 }
+                
+                printrRequestLog(new RestLogModel(){
+                    method = req.Method,
+                    URL = req.RequestUri.AbsolutePath,
+                    headers = req.Headers.AllKeys.Select(k=>$"{k}:{req.Headers[k]}").ToList(),
+                    body = body
+                });
 
                 using (WebResponse resp = req.GetResponse())
                 {
                     using (var reader = new StreamReader(resp.GetResponseStream()))
                     {
                         String retValue = reader.ReadToEnd();
-                        logger.Debug($"request_input - url : {resource} , request_query : {ConvertDictionary2String(reqQuery)} , request_header : {ConvertDictionary2String(reqHeader)} , request_body : {body}");
-                        logger.Debug($"request_output : {retValue}");
                         result = JsonSerializer.Deserialize<T>(retValue,new JsonSerializerOptions{IgnoreNullValues = true});
                     }
                     resp.Close();
@@ -74,8 +81,7 @@ namespace RestService
             }
             catch(Exception e)
             {
-                logger.Error($"request_input - url : {resource} , request_query : {ConvertDictionary2String(reqQuery)} , request_header : {ConvertDictionary2String(reqHeader)} , request_body : {body}");
-                logger.Error($"Exception : {e.Message}");   
+                logger.Error($"request exception error : {e.Message}");
             }
             return result;
         }
@@ -99,7 +105,7 @@ namespace RestService
 
                 WebRequest req = WebRequest.Create(strURL);
                 req.Method = method;
-                req.Timeout = 10000;
+                req.Timeout = defaultTimeout;
                 req.ContentType = "application/json";
 
                 foreach (KeyValuePair<string, string> entry in fixedHeaders)
@@ -121,13 +127,18 @@ namespace RestService
                     newStream.Write(httpBody, 0, httpBody.Length);
                 }
 
+                printrRequestLog(new RestLogModel(){
+                    method = req.Method,
+                    URL = req.RequestUri.AbsolutePath,
+                    headers = req.Headers.AllKeys.Select(k=>$"{k}:{req.Headers[k]}").ToList(),
+                    body = body
+                });
+
                 using (WebResponse resp = await req.GetResponseAsync())
                 {
                     using (var reader = new StreamReader(resp.GetResponseStream()))
                     {
                         String retValue = reader.ReadToEnd();
-                        logger.Debug($"request_input - url : {resource} , request_query : {ConvertDictionary2String(reqQuery)} , request_header : {ConvertDictionary2String(reqHeader)} , request_body : {body}");
-                        logger.Debug($"request_output : {retValue}");
                         result = JsonSerializer.Deserialize<T>(retValue,new JsonSerializerOptions{IgnoreNullValues = true});
                     }
                     resp.Close();
@@ -135,8 +146,7 @@ namespace RestService
             }
             catch(Exception e)
             {
-                logger.Error($"request_input - url : {resource} , request_query : {ConvertDictionary2String(reqQuery)} , request_header : {ConvertDictionary2String(reqHeader)} , request_body : {body}");
-                logger.Error($"Exception : {e.Message}");   
+                logger.Error($"request exception error : {e.Message}");
             }
             return result;
         }
@@ -158,7 +168,7 @@ namespace RestService
                 
                 WebRequest req = WebRequest.Create(strURL);
                 req.Method = method;
-                req.Timeout = 10000;
+                req.Timeout = defaultTimeout;
                 req.ContentType = "application/json";
 
                 foreach (KeyValuePair<string, string> entry in fixedHeaders)
@@ -180,27 +190,45 @@ namespace RestService
                     newStream.Write(httpBody, 0, httpBody.Length);
                 }
 
+                printrRequestLog(new RestLogModel(){
+                    method = req.Method,
+                    URL = req.RequestUri.AbsolutePath,
+                    headers = req.Headers.AllKeys.Select(k=>$"{k}:{req.Headers[k]}").ToList(),
+                    body = body
+                });
+
                 using (WebResponse resp = await req.GetResponseAsync())
                 {
                     using (var reader = new StreamReader(resp.GetResponseStream()))
                     {
                         result = reader.ReadToEnd();
-                        logger.Debug($"request_input - url : {resource} , request_query : {ConvertDictionary2String(reqQuery)} , request_header : {ConvertDictionary2String(reqHeader)} , request_body : {body}");
-                        logger.Debug($"request_output : {result}");
                     }
                     resp.Close();
                 }
             }
             catch(Exception e)
             {
-                logger.Error($"request_input - url : {resource} , request_query : {ConvertDictionary2String(reqQuery)} , request_header : {ConvertDictionary2String(reqHeader)} , request_body : {body}");
-                logger.Error($"Exception : {e.Message}");   
+                logger.Error($"request exception error : {e.Message}");
             }
             return result;
         }
 
-        private string ConvertDictionary2String(Dictionary<string,string> input){
-            return System.Text.Encoding.UTF8.GetString(JsonSerializer.SerializeToUtf8Bytes(input));
+        public class RestLogModel{
+            public string method {get;set;} = "";  
+            public string URL {get;set;} = "";
+            public List<string> headers {get;set;} = new List<string>();  
+            public string body {get;set;} = "";
+            public string message {get;set;} = "";
+        }
+
+        public void printrRequestLog(RestLogModel req){
+
+            logger.Trace(ConvertObj2String<RestLogModel>(req));
+        }
+
+        public string ConvertObj2String<T>(T input)
+        {
+            return System.Text.Json.JsonSerializer.Serialize(input, new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
         }
     }
 }

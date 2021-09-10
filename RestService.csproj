@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <PackageId>Abo.RestService.Core</PackageId>
-    <Version>1.0.0</Version>
-    <PackageVersion>1.0.0</PackageVersion>
+    <PackageId>Sample.Api.RestService.Core</PackageId>
+    <Version>1.0.1</Version>
+    <PackageVersion>1.0.1</PackageVersion>
     <Authors>abow wang</Authors>
     <Company></Company>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
